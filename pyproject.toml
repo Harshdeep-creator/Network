@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netdrive"
+version = "1.0.0"
+description = "Nearby file transfer with a verification code."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+authors = [{name = "Harshdeep Singh"}, {name = "Smarth Khurana"}]
+dependencies = ["cryptography>=42", "qrcode>=7.4", "pypng>=0.20220715.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+netdrive = "netdrive.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+netdrive = ["ui/*.html", "ui/*.css", "ui/*.js", "ui/*.json", "ui/*.pdf"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

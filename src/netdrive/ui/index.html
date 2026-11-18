@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NetDrive</title>
+  <link rel="stylesheet" href="https://fonts.bunny.net/css?family=ibm-plex-sans:400,500|ibm-plex-mono:400|source-serif-4:500">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <p class="brand">NetDrive</p>
+      <button type="button" data-screen="nearby" data-i18n="nearby" class="current">Nearby</button>
+      <button type="button" data-screen="send" data-i18n="send">Send</button>
+      <button type="button" data-screen="receive" data-i18n="receive">Receive</button>
+      <button type="button" data-screen="history" data-i18n="history">History</button>
+      <button type="button" data-screen="settings" data-i18n="settings">Settings</button>
+    </aside>
+    <main class="main">
+      <section id="nearby" class="screen on">
+        <h1 data-i18n="nearbyTitle">Nearby</h1>
+        <p class="help" data-i18n="nearbyHelp"></p>
+        <table>
+          <thead><tr><th data-i18n="colName">Name</th><th data-i18n="colAddress">Address</th><th data-i18n="colFound">Found</th><th data-i18n="colSeen">Last seen</th><th></th></tr></thead>
+          <tbody id="peers"></tbody>
+        </table>
+        <p id="emptyPeers" data-i18n="emptyPeers"></p>
+        <h2 data-i18n="openTitle">Open a file</h2>
+        <p class="help" data-i18n="openHelp">Each QR opens one file. The first code opens the course description.</p>
+        <label><span data-i18n="addPdf">Add another PDF</span> <input id="shareFile" type="file" accept="application/pdf,.pdf"></label>
+        <div id="shareList"></div>
+      </section>
+      <section id="send" class="screen">
+        <h1 data-i18n="sendTitle">Send</h1>
+        <p class="help" data-i18n="sendHelp">Choose a file, then press Share. The QR does not expire. Anyone with the link can open it until the download limit is used.</p>
+        <label><span data-i18n="file">Files</span><input id="file" type="file" multiple></label>
+        <label><span data-i18n="downloadLimit">Download limit</span><input id="shareLimit" type="number" min="1" max="1000000" value="10000"></label>
+        <button type="button" class="action" id="shareBtn" data-i18n="shareBtn">Share</button>
+        <div id="sendShares"></div>
+        <label><span data-i18n="folder">One folder</span><input id="folder" type="file" webkitdirectory></label>
+        <label><span data-i18n="contactPick">Contact</span>
+          <select id="contactPick"><option value="">Ephemeral code</option></select>
+        </label>
+        <label><span data-i18n="address">Address</span><input id="address" type="text" placeholder="127.0.0.1:5000"></label>
+        <button type="button" class="action" id="sendBtn" data-i18n="send">Send</button>
+        <p id="sendCode" class="code" hidden></p>
+        <p id="sendProgress" class="mono"></p>
+        <button type="button" class="plain" id="cancelSend" data-i18n="cancel">Cancel</button>
+        <h2 data-i18n="webTitle">Browser download</h2>
+        <p class="help" data-i18n="webHelp">One link, one download. The QR is the address.</p>
+        <button type="button" class="plain" id="webBtn" data-i18n="webMake">Make a browser QR</button>
+        <button type="button" class="action" id="webApprove" data-i18n="webRelease">Release download</button>
+        <img id="webQr" class="qr" alt="" hidden>
+        <p id="webCode" class="code" hidden></p>
+        <p id="webUrl" class="offer"></p>
+      </section>
+      <section id="receive" class="screen">
+        <h1 data-i18n="receiveTitle">Receive</h1>
+        <p class="help" data-i18n="receiveHelp"></p>
+        <p id="listen"></p>
+        <p id="waiting" data-i18n="waiting"></p>
+        <div id="offer" hidden>
+          <p id="offerSeconds" class="mono"></p>
+          <p id="offerCode" class="code"></p>
+          <pre id="offerText" class="offer"></pre>
+          <p id="danger" class="danger" hidden data-i18n="danger"></p>
+          <label id="dangerBox" hidden><input id="dangerOk" type="checkbox"> <span data-i18n="danger"></span></label>
+          <button type="button" class="plain" id="declineBtn" data-i18n="decline">Decline</button>
+          <button type="button" class="action" id="acceptBtn" data-i18n="accept">Accept</button>
+        </div>
+        <p><button type="button" class="plain" id="demoBtn" data-i18n="demo"></button></p>
+        <h2 data-i18n="openTitle">Open a file</h2>
+        <figure class="qr-card">
+          <img id="receiveFileQr" class="qr" alt="Course description">
+          <figcaption id="receiveFileName">CN_Course_Description_Odd_2026.pdf</figcaption>
+          <p id="receiveFileUri" class="offer"></p>
+          <div id="receiveShare" class="actions"></div>
+        </figure>
+      </section>
+      <section id="history" class="screen">
+        <h1 data-i18n="historyTitle">History</h1>
+        <p class="help" data-i18n="historyHelp"></p>
+        <p id="emptyHistory" data-i18n="emptyHistory">No transfers yet.</p>
+        <table>
+          <thead><tr><th data-i18n="colName">Name</th><th data-i18n="colSize">Size</th><th data-i18n="colResult">Result</th><th data-i18n="colTime">Time</th><th></th></tr></thead>
+          <tbody id="historyRows"></tbody>
+        </table>
+        <button type="button" class="plain" id="clearBtn" data-i18n="clear">Clear all</button>
+      </section>
+      <section id="settings" class="screen">
+        <h1 data-i18n="settingsTitle">Settings</h1>
+        <label><span data-i18n="nick">Nickname</span> <input id="nick" type="text"></label>
+        <label><span data-i18n="folderPath">Receive folder</span> <input id="folderPath" type="text" readonly></label>
+        <label><span data-i18n="maxSize">Max size (bytes)</span> <input id="maxSize" type="number"></label>
+        <label><span data-i18n="visibility">Visibility</span>
+          <select id="visibility">
+            <option>Off</option>
+            <option>Contacts only</option>
+            <option>Everyone</option>
+          </select>
+        </label>
+        <label><span data-i18n="language">Language</span>
+          <select id="language">
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+          </select>
+        </label>
+        <label><input id="relay" type="checkbox"> <span data-i18n="relay">Relay control messages</span></label>
+        <label><input id="auto" type="checkbox"> <span data-i18n="auto">Auto-accept verified contacts under the limit</span></label>
+        <label><span data-i18n="autoLimit">Auto-accept limit (bytes)</span> <input id="autoLimit" type="number" value="10485760"></label>
+        <button type="button" class="action" id="saveBtn" data-i18n="save">Save</button>
+        <button type="button" class="plain" id="meshBtn" data-i18n="meshRun">Run the relay check</button>
+        <h2 data-i18n="contactTitle">Contact QR</h2>
+        <img id="settingsQr" class="qr" alt="Contact QR" src="/api/contact/qr.png">
+        <p id="settingsTimer" class="mono"></p>
+        <p id="contactUri" class="offer"></p>
+        <button type="button" class="plain" id="contactShow" data-i18n="qrNew">Show a new QR</button>
+        <label><span data-i18n="pasteLink">Paste a contact link</span> <input id="contactIn" type="text"></label>
+        <label><span data-i18n="theirName">Their name</span> <input id="contactNick" type="text"></label>
+        <button type="button" class="plain" id="contactAdd" data-i18n="addContact">Add contact</button>
+        <ul id="contactList"></ul>
+      </section>
+      <section id="onboard" class="screen">
+        <p class="brand">NetDrive</p>
+        <div id="step1">
+          <h1 data-i18n="step1Title">Send a file to someone nearby.</h1>
+          <p data-i18n="step1Body">It stays on this network. Nothing is uploaded to an account.</p>
+          <button type="button" class="action" id="toStep2" data-i18n="continue">Continue</button>
+        </div>
+        <div id="step2" hidden>
+          <h1 data-i18n="step2Title">Compare the code before you accept.</h1>
+          <p data-i18n="step2Body">If the numbers differ, decline. The program will not decide for you.</p>
+          <button type="button" class="plain" id="toStep3" data-i18n="continue">Continue</button>
+        </div>
+        <div id="step3" hidden>
+          <h1 data-i18n="step3Title">What should other people call this computer?</h1>
+          <label><span data-i18n="nick">Nickname</span> <input id="onboardNick" type="text" value="netdrive"></label>
+          <button type="button" class="action" id="finishOnboard" data-i18n="start">Start</button>
+        </div>
+      </section>
+      <p id="status" class="status"></p>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

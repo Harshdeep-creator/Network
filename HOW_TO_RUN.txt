@@ -1,0 +1,84 @@
+NetDrive
+========
+
+Send a file to someone on the same network. Both computers show an 8-digit
+code. The file is saved only after the receiver accepts, and only if the
+hash matches.
+
+You need Python 3.11 or newer.
+Windows: install it from https://www.python.org/downloads/ and tick
+"Add python.exe to PATH".
+Mac: install Python 3.11+ and use python3 wherever this file says python.
+
+
+1. Open a terminal in this folder
+---------------------------------
+Windows: unzip, then in the netdrive folder Shift+right-click and choose
+"Open in Terminal" or "Open PowerShell window here".
+
+Check Python:
+
+    python --version
+
+
+2. Install
+----------
+    python -m pip install -e ".[dev]"
+
+That installs the program and the test tools. It needs a network connection
+the first time.
+
+
+3. Open the app
+---------------
+    python -m netdrive ui
+
+Leave that window open. In a browser open:
+
+    http://127.0.0.1:8765/
+
+If three short intro screens appear, click through them.
+
+On Receive, click "Send a sample file to this computer".
+Compare the code, then click Accept.
+The file is written into the netdrive-received folder next to this file.
+Decline writes nothing.
+
+
+4. Show the code check
+----------------------
+Open a second terminal in this same folder:
+
+    python -m netdrive demo_mitm
+
+The first line ends with MATCH. The two codes are the same.
+The second line ends with MISMATCH. A proxy changed the code.
+The program does not decide for you. A person compares the numbers
+and declines when they differ.
+
+
+5. Send a real file to the page
+-------------------------------
+Leave the page open. Read the port on the Receive screen
+("listening on port 55324" means the port is 55324).
+
+    python -m netdrive send notes.txt --to 127.0.0.1:PORT
+
+Use your port in place of PORT. Compare the code in the terminal with
+the code on the page, then Accept.
+
+
+6. Tests
+--------
+    python -m pytest -q
+
+The last line should say passed, with no failures.
+
+
+Notes
+-----
+The page stays on this computer. Do not upload it anywhere.
+Bluetooth, Wi-Fi Direct, and a phone keystore are simulated.
+The transfer you run above is real TCP on this machine.
+A contact QR is on the Nearby, Receive, and Settings screens.
+python -m netdrive sim mesh prints: mesh: 20 nodes, 0 loops, relays blind
