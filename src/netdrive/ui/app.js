@@ -36,6 +36,13 @@ function showText(id, text) {
 
 function render(state) {
   document.getElementById("status").textContent = state.status || "";
+  const compare = (state.incoming && state.incoming.code) || state.sendCode || state.visibleCode || "";
+  const banner = document.getElementById("compare");
+  banner.hidden = !compare;
+  banner.textContent = compare ? `Verification code: ${compare}` : "";
+  if (state.incoming && document.querySelector(".screen.on")?.id !== "receive") {
+    document.querySelector('[data-screen="receive"]').click();
+  }
   document.getElementById("listen").textContent = state.listen || "";
   const peers = state.peers || [];
   document.getElementById("emptyPeers").hidden = peers.length > 0;

@@ -112,6 +112,7 @@ class Hub:
         self.status = "Idle."
         self.progress = ""
         self.send_code = ""
+        self.visible_code = ""
         self.history: list[dict] = []
         self.incoming: dict | None = None
         self.offer_deadline = 0.0
@@ -143,14 +144,16 @@ class Hub:
 
         def prompt(summary: str, offer: dict) -> bool:
             match = CODE_RE.search(summary)
+            code = match.group(1) if match else ""
             with self._lock:
+                self.visible_code = code
                 self.incoming = {
                     "summary": summary,
-                    "code": match.group(1) if match else "",
+                    "code": code,
                     "dangerous": any(is_dangerous(item["name"]) for item in offer["files"]),
                     "files": offer["files"],
                 }
-                self.status = "Incoming offer. Compare the code."
+                self.status = "Compare this code with his screen, then Accept."
                 self.offer_deadline = time.monotonic() + 60
             self._accept = False
             self._decision.clear()
@@ -421,6 +424,7 @@ class Hub:
                     match = CODE_RE.search(captured.getvalue())
                     if match:
                         self_hub.send_code = match.group(1)
+                        self_hub.visible_code = match.group(1)
                     line = text.strip()
                     if line:
                         self_hub.status = line
@@ -500,6 +504,7 @@ class Hub:
             "incoming": incoming,
             "progress": self.progress,
             "sendCode": self.send_code,
+            "visibleCode": self.visible_code,
             "history": list(self.history),
             "settings": {
                 "nick": self.nick,
