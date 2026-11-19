@@ -13,6 +13,25 @@ PORT = 47821
 BEACON_LIMIT = 512
 
 
+def broadcast_targets() -> tuple[str, ...]:
+    """Limited broadcast, this machine, and the /24 broadcast Wi-Fi usually needs."""
+    targets = ["255.255.255.255", "127.0.0.1"]
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.connect(("8.8.8.8", 80))
+        ip = sock.getsockname()[0]
+    except OSError:
+        ip = ""
+    finally:
+        sock.close()
+    parts = ip.split(".")
+    if len(parts) == 4 and not ip.startswith("127."):
+        directed = ".".join(parts[:3] + ["255"])
+        if directed not in targets:
+            targets.append(directed)
+    return tuple(targets)
+
+
 @dataclass(frozen=True)
 class Peer:
     """A receiver heard on the LAN. `sid` changes every process run."""
@@ -126,7 +145,7 @@ class Beacon:
                 now = time.monotonic()
                 if self.broadcast and now >= next_send:
                     packet = self.payload()
-                    for target in ("255.255.255.255", "127.0.0.1"):
+                    for target in broadcast_targets():
                         try:
                             sock.sendto(packet, (target, PORT))
                         except OSError as exc:
@@ -174,7 +193,7 @@ def discover(window: float = 3.0, own_sid: str = "", now=time.monotonic) -> list
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             sock.bind(("0.0.0.0", 0))
-            for target in ("255.255.255.255", "127.0.0.1"):
+            for target in broadcast_targets():
                 try:
                     sock.sendto(b"WHO", (target, PORT))
                 except OSError:

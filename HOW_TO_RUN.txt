@@ -59,16 +59,39 @@ and declines when they differ.
 
 5. Send a real file to the page
 -------------------------------
-Leave the page open. Read the port on the Receive screen
-("listening on port 55324" means the port is 55324).
+Leave the page open. On Receive, read the address line. It looks like
+10.20.106.133:63987. The port changes every time you start the app.
 
     python -m netdrive send notes.txt --to 127.0.0.1:PORT
 
-Use your port in place of PORT. Compare the code in the terminal with
-the code on the page, then Accept.
+Use the port from that line in place of PORT. Compare the code in the
+terminal with the code on the page, then Accept.
 
 
-6. Tests
+6. Two computers on the same Wi-Fi
+----------------------------------
+Install and run "python -m netdrive ui" on both computers.
+On both, open Settings, set Visibility to Everyone, and press Save.
+A fresh install already starts on Everyone.
+
+On the receiver, open Receive and read the address, for example
+192.168.1.20:50945. On the sender, open Send, choose a file, paste
+that address into "His address", and press Send. Do not press Share.
+Share only makes a link.
+
+Both screens show an 8-digit code. If the numbers match, the receiver
+presses Accept. The file is written in that computer's netdrive-received
+folder.
+
+Windows may block the incoming connection the first time. Allow Python
+on private networks. 127.0.0.1 reaches only the same computer. Use the
+address shown on the other computer's Receive screen.
+
+If a send says "Receiver is not visible", set Visibility to Everyone
+on the receiving computer, press Save, and send again.
+
+
+7. Tests
 --------
     python -m pytest -q
 

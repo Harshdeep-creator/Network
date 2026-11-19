@@ -38,6 +38,31 @@ from netdrive.webreceiver import WebDrop, qr_png_bytes
 HERE = Path(__file__).resolve().parent
 CODE_RE = re.compile(r"Verification code: (\d{4} \d{4})")
 DEFAULT_SHARE_LIMIT = 10000
+MEDIA_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".heic": "image/heic",
+    ".bmp": "image/bmp",
+    ".mp4": "video/mp4",
+    ".m4v": "video/mp4",
+    ".mov": "video/quicktime",
+    ".webm": "video/webm",
+    ".mkv": "video/x-matroska",
+    ".avi": "video/x-msvideo",
+    ".3gp": "video/3gpp",
+}
+
+
+def media_type(name: str) -> str:
+    """A browser type so a photo or video opens instead of downloading as a blob."""
+    ext = Path(name).suffix.lower()
+    if ext in MEDIA_TYPES:
+        return MEDIA_TYPES[ext]
+    guessed = mimetypes.guess_type(name)[0]
+    return guessed or "application/octet-stream"
 
 
 def share_limit(value) -> int:
@@ -78,7 +103,7 @@ class Hub:
         self.nick = "netdrive-" + secrets.token_hex(2)
         self.max_size = 4 * 1024**3
         self.visibility = "Everyone"
-        self.previous_visibility = "Contacts only"
+        self.previous_visibility = "Everyone"
         self.visible_since = time.monotonic()
         self.language = "en"
         self.relay = False
@@ -107,7 +132,9 @@ class Hub:
         self.receiver: Receiver | None = None
         self.beacon: Beacon | None = None
         self._lock = threading.Lock()
+        self._peers: list[dict] = []
         self.ensure_receiver()
+        threading.Thread(target=self._watch_peers, name="netdrive-peers", daemon=True).start()
 
     def ensure_receiver(self) -> None:
         """Start the listener once. The browser prompt is the accept step."""
@@ -135,7 +162,7 @@ class Hub:
         self.receiver = Receiver(self.directory, self.nick, port=0, host="0.0.0.0", prompt=prompt, max_size=self.max_size)
         threading.Thread(target=self.receiver.serve_forever, name="netdrive-ui-rx", daemon=True).start()
         self.apply_visibility()
-        self.status = f"Listening on port {self.receiver.port}."
+        self.status = f"Other computer should use {lan_ip()}:{self.receiver.port}."
 
     def apply_visibility(self) -> None:
         """Off stops the beacon and refuses offers. Other modes keep the beacon on."""
@@ -160,6 +187,32 @@ class Hub:
         self.beacon.nick = self.nick
         self.beacon.allow = self._allow_who
         self.beacon.broadcast = self.visibility != "Contacts only"
+
+    def _watch_peers(self) -> None:
+        """Keep a LAN list. A short listen inside each page refresh misses the beacon."""
+        while True:
+            time.sleep(0.5)
+            if self.visibility == "Off" or self.receiver is None:
+                self._peers = []
+                continue
+            try:
+                own = self.receiver.port
+                local = {lan_ip(), "127.0.0.1"}
+                sid = self.beacon.sid if self.beacon is not None else ""
+                found = []
+                for peer in discover(window=1.2, own_sid=sid):
+                    if peer.port == own and peer.ip in local:
+                        continue
+                    found.append({
+                        "nick": peer.nick,
+                        "ip": peer.ip,
+                        "port": peer.port,
+                        "via": "LAN",
+                        "seen": "just now",
+                    })
+                self._peers = found
+            except Exception:
+                self._peers = []
 
     def _allow_who(self, data: bytes) -> bool:
         """Beacon reply. Off never reaches here. Contacts only needs a rotating id."""
@@ -361,28 +414,43 @@ class Hub:
 
         def run() -> None:
             captured = __import__("io").StringIO()
+
+            class _Live:
+                def write(self, text: str) -> int:
+                    captured.write(text)
+                    match = CODE_RE.search(captured.getvalue())
+                    if match:
+                        self_hub.send_code = match.group(1)
+                    line = text.strip()
+                    if line:
+                        self_hub.status = line
+                    return len(text)
+
+                def flush(self) -> None:
+                    return None
+
+            self_hub = self
             private, sender_pk, rotating = self._sender_key(contact)
             result = send_files(
                 paths,
                 host,
                 port,
                 self.nick,
-                out=captured,
+                out=_Live(),
                 static_private=private,
                 sender_pk=sender_pk,
                 rotating=rotating,
                 cancel=cancel,
                 on_progress=lambda line: setattr(self, "progress", line),
             )
-            text = captured.getvalue()
-            match = CODE_RE.search(text)
-            self.send_code = match.group(1) if match else self.send_code
             names = ", ".join(item[0] for item in files)
             if result != 0 and not self.progress:
                 self.progress = f"{names} stopped"
-            self.status = "Sent." if result == 0 else "The send did not finish."
             if result == 0:
+                self.status = "Sent."
                 self.remember(names, total, "sent")
+            elif not captured.getvalue().strip():
+                self.status = "The send did not finish."
 
         threading.Thread(target=run, daemon=True).start()
 
@@ -415,22 +483,7 @@ class Hub:
         if self.receiver is not None:
             self.apply_visibility()
         self.refresh_contact_qr()
-        peers = []
-        if self.visibility != "Off":
-            try:
-                own_port = self.receiver.port if self.receiver else None
-                for peer in discover(window=0.05, own_sid="ui"):
-                    if peer.port == own_port:
-                        continue
-                    peers.append({
-                        "nick": peer.nick,
-                        "ip": peer.ip,
-                        "port": peer.port,
-                        "via": "LAN",
-                        "seen": "just now",
-                    })
-            except Exception:
-                peers = []
+        peers = list(self._peers) if self.visibility != "Off" else []
         with self._lock:
             incoming = dict(self.incoming) if self.incoming else None
         if incoming:
@@ -439,7 +492,10 @@ class Hub:
         left = max(0, int(120 - (time.monotonic() - self.qr_started))) if self.qr_started else 120
         return {
             "status": self.status,
-            "listen": f"This computer is listening on port {self.receiver.port}." if self.receiver else "",
+            "listen": (
+                f"On the other computer, open Send and type {lan_ip()}:{self.receiver.port}."
+                if self.receiver else ""
+            ),
             "peers": peers,
             "incoming": incoming,
             "progress": self.progress,
@@ -534,16 +590,7 @@ def serve(directory: Path, port: int = 8765, block: bool = True) -> ThreadingHTT
                 if used >= cap:
                     self.send_error(403, "Download limit reached")
                     return
-                item["downloads"] = used + 1
-                hub.write_share_index()
-                payload = Path(item["path"]).read_bytes()
-                kind = mimetypes.guess_type(item["name"])[0] or "application/octet-stream"
-                self.send_response(200)
-                self.send_header("Content-Type", kind)
-                self.send_header("Content-Disposition", f'inline; filename="{item["name"]}"')
-                self.send_header("Content-Length", str(len(payload)))
-                self.end_headers()
-                self.wfile.write(payload)
+                self._send_share(item, used)
                 return
             if name.startswith("/api/share/") and name.endswith(".png"):
                 item = hub.shares.get(name[len("/api/share/"):-4])
@@ -636,7 +683,10 @@ def serve(directory: Path, port: int = 8765, block: bool = True) -> ThreadingHTT
                     hub.status = "Choose a file and an address like 127.0.0.1:5000."
                 else:
                     hub.status = "Sending. Compare the code, then wait for the other side to accept."
-                    hub.send_upload(payload.get("to") or "", decoded, str(payload.get("contact") or ""))
+                    try:
+                        hub.send_upload(payload.get("to") or "", decoded, str(payload.get("contact") or ""))
+                    except ValueError as exc:
+                        hub.status = str(exc)
             elif path == "/api/send/cancel":
                 hub.send_cancel.set()
                 hub.status = "Cancelled. Partial files removed."
@@ -696,6 +746,47 @@ def serve(directory: Path, port: int = 8765, block: bool = True) -> ThreadingHTT
                 if 0 <= index < len(hub.history):
                     hub.history.pop(index)
             self._json({"ok": True})
+
+        def _send_share(self, item: dict, used: int) -> None:
+            """Send a photo, video, or other file. Later video ranges do not use another download."""
+            path = Path(item["path"])
+            size = path.stat().st_size
+            start, end = 0, max(0, size - 1)
+            partial = False
+            header = self.headers.get("Range")
+            if header and header.startswith("bytes=") and size:
+                spec = header.split("=", 1)[1].split(",")[0].strip()
+                left, _, right = spec.partition("-")
+                try:
+                    if left == "":
+                        start = max(0, size - int(right or "0"))
+                    else:
+                        start = int(left)
+                        end = int(right) if right else size - 1
+                except ValueError:
+                    start, end = 0, size - 1
+                else:
+                    end = min(end, size - 1)
+                    if start >= size or start > end:
+                        self.send_error(416)
+                        return
+                    partial = True
+            if not partial or start == 0:
+                item["downloads"] = used + 1
+                hub.write_share_index()
+            length = 0 if size == 0 else end - start + 1
+            with path.open("rb") as handle:
+                handle.seek(start)
+                payload = handle.read(length)
+            self.send_response(206 if partial else 200)
+            self.send_header("Content-Type", media_type(item["name"]))
+            self.send_header("Content-Disposition", f'inline; filename="{item["name"]}"')
+            self.send_header("Accept-Ranges", "bytes")
+            if partial:
+                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
 
         def _html(self, body: str) -> None:
             raw = body.encode("utf-8")

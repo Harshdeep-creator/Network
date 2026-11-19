@@ -28,25 +28,27 @@
         <p id="emptyPeers" data-i18n="emptyPeers"></p>
         <h2 data-i18n="openTitle">Open a file</h2>
         <p class="help" data-i18n="openHelp">Each QR opens one file. The first code opens the course description.</p>
-        <label><span data-i18n="addPdf">Add another PDF</span> <input id="shareFile" type="file" accept="application/pdf,.pdf"></label>
+        <label><span data-i18n="addPdf">Add a photo, video, or PDF</span> <input id="shareFile" type="file" accept="image/*,video/*,application/pdf,.pdf"></label>
         <div id="shareList"></div>
       </section>
       <section id="send" class="screen">
         <h1 data-i18n="sendTitle">Send</h1>
-        <p class="help" data-i18n="sendHelp">Choose a file, then press Share. The QR does not expire. Anyone with the link can open it until the download limit is used.</p>
-        <label><span data-i18n="file">Files</span><input id="file" type="file" multiple></label>
-        <label><span data-i18n="downloadLimit">Download limit</span><input id="shareLimit" type="number" min="1" max="1000000" value="10000"></label>
-        <button type="button" class="action" id="shareBtn" data-i18n="shareBtn">Share</button>
-        <div id="sendShares"></div>
-        <label><span data-i18n="folder">One folder</span><input id="folder" type="file" webkitdirectory></label>
+        <p class="help" data-i18n="sendHelp">Choose a file. Paste the address from his Receive screen. Press Send. Both of you compare the code, then he presses Accept.</p>
+        <label><span data-i18n="file">Choose a file</span><input id="file" type="file" multiple></label>
+        <label><span data-i18n="address">His address</span><input id="address" type="text" placeholder="192.168.1.20:5000"></label>
         <label><span data-i18n="contactPick">Contact</span>
           <select id="contactPick"><option value="">Ephemeral code</option></select>
         </label>
-        <label><span data-i18n="address">Address</span><input id="address" type="text" placeholder="127.0.0.1:5000"></label>
         <button type="button" class="action" id="sendBtn" data-i18n="send">Send</button>
         <p id="sendCode" class="code" hidden></p>
         <p id="sendProgress" class="mono"></p>
         <button type="button" class="plain" id="cancelSend" data-i18n="cancel">Cancel</button>
+        <h2 data-i18n="shareTitle">Or make a link</h2>
+        <p class="help" data-i18n="shareHelp">Share does not use his address. It makes a link and a QR.</p>
+        <label><span data-i18n="downloadLimit">Download limit</span><input id="shareLimit" type="number" min="1" max="1000000" value="10000"></label>
+        <button type="button" class="action" id="shareBtn" data-i18n="shareBtn">Share</button>
+        <div id="sendShares"></div>
+        <label><span data-i18n="folder">Optional: one folder</span><input id="folder" type="file" webkitdirectory></label>
         <h2 data-i18n="webTitle">Browser download</h2>
         <p class="help" data-i18n="webHelp">One link, one download. The QR is the address.</p>
         <button type="button" class="plain" id="webBtn" data-i18n="webMake">Make a browser QR</button>
@@ -58,7 +60,7 @@
       <section id="receive" class="screen">
         <h1 data-i18n="receiveTitle">Receive</h1>
         <p class="help" data-i18n="receiveHelp"></p>
-        <p id="listen"></p>
+        <p id="listen" class="code"></p>
         <p id="waiting" data-i18n="waiting"></p>
         <div id="offer" hidden>
           <p id="offerSeconds" class="mono"></p>
